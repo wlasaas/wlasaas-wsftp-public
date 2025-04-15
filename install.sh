@@ -42,27 +42,47 @@ dnf install -y yum-utils device-mapper-persistent-data lvm2 curl
 check_status "Dependencies installed successfully" "Failed to install dependencies"
 
 # 2. Docker Installation
-print_status "Installing Docker..."
-dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-dnf install -y docker-ce docker-ce-cli containerd.io
-systemctl enable --now docker
-check_status "Docker installed and started successfully" "Failed to install Docker"
+print_status "Checking if Docker is already installed..."
+if command -v docker &> /dev/null; then
+    print_status "Docker is already installed"
+else
+    print_status "Installing Docker..."
+    dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+    dnf install -y docker-ce docker-ce-cli containerd.io
+    systemctl enable --now docker
+    check_status "Docker installed and started successfully" "Failed to install Docker"
+fi
 
 # 3. Docker Compose Installation
-print_status "Installing Docker Compose..."
-curl -L "https://github.com/docker/compose/releases/download/v2.24.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-chmod +x /usr/local/bin/docker-compose
-check_status "Docker Compose installed successfully" "Failed to install Docker Compose"
+print_status "Checking if Docker Compose is already installed..."
+if command -v docker-compose &> /dev/null; then
+    print_status "Docker Compose is already installed"
+else
+    print_status "Installing Docker Compose..."
+    curl -L "https://github.com/docker/compose/releases/download/v2.24.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+    check_status "Docker Compose installed successfully" "Failed to install Docker Compose"
+fi
 
 # 4. Git Installation
-# print_status "Installing Git..."
-# dnf install -y git
-# check_status "Git installed successfully" "Failed to install Git"
+print_status "Checking if Git is already installed..."
+if command -v git &> /dev/null; then
+    print_status "Git is already installed"
+else
+    print_status "Installing Git..."
+    dnf install -y git
+    check_status "Git installed successfully" "Failed to install Git"
+fi
 
 # 5. AWS CLI Installation
-print_status "Installing AWS CLI..."
-dnf install -y awscli
-check_status "AWS CLI installed successfully" "Failed to install AWS CLI"
+print_status "Checking if AWS CLI is already installed..."
+if command -v aws &> /dev/null; then
+    print_status "AWS CLI is already installed"
+else
+    print_status "Installing AWS CLI..."
+    dnf install -y awscli
+    check_status "AWS CLI installed successfully" "Failed to install AWS CLI"
+fi
 
 # 6. AWS Configuration
 print_status "Configuring AWS CLI..."

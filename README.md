@@ -11,7 +11,6 @@ Este documento fornece um guia passo a passo para implantar o WSFTP — uma solu
 - Acesso root ou sudo
 - 2GB de RAM
 - 20GB de espaço em disco
-- Ter permissão para instalar pacote (Git, Docker e AWS Cli)
 
 ### Requisitos Recomendados
 - 4GB de RAM ou mais

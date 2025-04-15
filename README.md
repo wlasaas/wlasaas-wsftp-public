@@ -11,6 +11,7 @@ Este documento fornece um guia passo a passo para implantar o WSFTP — uma solu
 - Acesso root ou sudo
 - 2GB de RAM
 - 20GB de espaço em disco
+- Ter permissão para instalar pacote (Git, Docker e AWS Cli)
 
 ### Requisitos Recomendados
 - 4GB de RAM ou mais
@@ -22,7 +23,15 @@ Este documento fornece um guia passo a passo para implantar o WSFTP — uma solu
 
 ## Instalação
 
-### 1. Clonar o Projeto WSFTP
+### 1. Instalar Git
+
+```bash
+dnf install -y git
+```
+
+---
+
+### 2. Clonar o Projeto WSFTP
 
 ```bash
 git clone https://github.com/wlasaas/wlasaas-wsftp-public.git wlasaas-wsftp
@@ -30,13 +39,13 @@ git clone https://github.com/wlasaas/wlasaas-wsftp-public.git wlasaas-wsftp
 
 ---
 
-### 2. Configurar docker-compose.yml
+### 3. Configurar docker-compose.yml
 
 Caso queira editar as portas WEB e SFTP edit arquivo \`docker-compose.yml\`
 
 ---
 
-### 3. Iniciar o WSFTP
+### 4. Iniciar o WSFTP
 
 ```bash
 # iniciar instalação
@@ -46,7 +55,7 @@ sudo sh ./install.sh
 
 ---
 
-### 4. Acesso Inicial
+### 5. Acesso Inicial
 
 - Painel web: \`http://IP_DO_SERVIDOR:PORTA\` (porta definida no docker-compose.yml)
 - Acesso SFTP: \`sftp://IP_DO_SERVIDOR:PORTA\` (ex: FileZilla) (porta definida no docker-compose.yml)
@@ -54,7 +63,7 @@ sudo sh ./install.sh
 
 ---
 
-### 5. Customizações e Gerenciamento
+### 6. Customizações e Gerenciamento
 
 #### 1. Personalização da Interface
 
@@ -80,7 +89,7 @@ Em **Roles**, defina escopos de administração para segmentar o controle entre 
 
 ---
 
-### 6. Logs e Monitoramento
+### 7. Logs e Monitoramento
 
 ```bash
 # Ver status

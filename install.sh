@@ -55,9 +55,9 @@ chmod +x /usr/local/bin/docker-compose
 check_status "Docker Compose installed successfully" "Failed to install Docker Compose"
 
 # 4. Git Installation
-print_status "Installing Git..."
-dnf install -y git
-check_status "Git installed successfully" "Failed to install Git"
+# print_status "Installing Git..."
+# dnf install -y git
+# check_status "Git installed successfully" "Failed to install Git"
 
 # 5. AWS CLI Installation
 print_status "Installing AWS CLI..."

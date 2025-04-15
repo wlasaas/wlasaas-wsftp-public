@@ -84,13 +84,7 @@ docker pull 091448068257.dkr.ecr.sa-east-1.amazonaws.com/wlasaas/wsftp:latest
 docker tag 091448068257.dkr.ecr.sa-east-1.amazonaws.com/wlasaas/wsftp:latest wlasaas/wsftp-wla:latest
 check_status "Docker image pulled and tagged successfully" "Failed to pull Docker image"
 
-# 8. Clone WSFTP Repository
-print_status "Cloning WSFTP repository..."
-git clone https://github.com/wlasaas/wlasaas-wsftp-public.git wlasaas-wsftp
-cd wlasaas-wsftp
-check_status "Repository cloned successfully" "Failed to clone repository"
-
-# 9. Fix Permissions and Start Service
+# 8. Fix Permissions and Start Service
 print_status "Setting up permissions and starting service..."
 mkdir -p docker/backups
 mkdir -p docker/db

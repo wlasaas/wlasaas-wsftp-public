@@ -92,6 +92,8 @@ check_status "Repository cloned successfully" "Failed to clone repository"
 
 # 9. Fix Permissions and Start Service
 print_status "Setting up permissions and starting service..."
+mkdir -p docker/db
+touch -p docker/data
 chmod -R 777 docker
 docker-compose up -d
 check_status "Service started successfully" "Failed to start service"

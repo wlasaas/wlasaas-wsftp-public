@@ -21,7 +21,7 @@ services:
       - SFTPGO_LOG_FILE_PATH=""  # Logs para stdout
       - SFTPGO_DEFAULT_ADMIN_USERNAME=wlasaas  # Usuário admin padrão
       - SFTPGO_DEFAULT_ADMIN_PASSWORD=wlasaas  # Senha admin padrão
-      - SFTPGO_DATA_PROVIDER__NAME=sftpgo.db  # Nome do arquivo do banco de dados
+      - SFTPGO_DATA_PROVIDER__NAME=wsftp.db  # Nome do arquivo do banco de dados
       - SFTPGO_DATA_PROVIDER__DRIVER=sqlite  # Driver do banco de dados
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:8080/healthz"]

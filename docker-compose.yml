@@ -12,6 +12,7 @@ services:
     volumes:
       - ./docker/data:/srv/sftpgo/data
       - ./docker/backups:/srv/sftpgo/backups
+      - ./docker/static/favicon.png:/usr/share/sftpgo/static/favicon.png  # Volume para favicon
       - ./docker/static/img:/usr/share/sftpgo/static/img  # Volume para imagens estáticas
       - ./docker/static/locales:/usr/share/sftpgo/static/locales  # Volume para traduções
       - ./docker/config/wsftp.json:/etc/sftpgo/sftpgo.json  # Volume para o arquivo de configuração principal

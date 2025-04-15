@@ -22,85 +22,7 @@ Este documento fornece um guia passo a passo para implantar o WSFTP — uma solu
 
 ## Instalação
 
-### 1. Preparação do Ambiente
-
-```bash
-# Atualizar pacotes
-sudo dnf update -y
-
-# Instalar dependências básicas
-sudo dnf install -y yum-utils device-mapper-persistent-data lvm2 curl
-```
-
-### 2. Instalar Docker e Docker Compose
-
-```bash
-# Adicionar repositório Docker
-sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-
-# Instalar Docker
-sudo dnf install -y docker-ce docker-ce-cli containerd.io
-
-# Iniciar e habilitar Docker
-sudo systemctl enable --now docker
-```
-
-#### Docker Compose
-
-```bash
-# Baixar Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-
-# Dar permissão de execução
-sudo chmod +x /usr/local/bin/docker-compose
-
-# Verificar versão
-docker-compose --version
-```
-
-### 3. Instalar Git
-
-```bash
-# Instalar Git
-sudo dnf install -y git
-
-# Verificar a versão instalada
-git --version
-```
-
-### 4. Instalar AWS Cli
-
-```bash
-# Instalar Git
-sudo dnf install -y awscli
-
-# Verificar a versão instalada
-aws --version
-```
-
-### 4.1. Login no AWS Cli
-
-```bash
-aws configure
-# Sera necesario informar o Access Key ID e Secret Access Key
-```
-
-### 4.2. Login no AWS ECR
-
-```bash
-aws ecr get-login-password --region sa-east-1 | docker login --username AWS --password-stdin 091448068257.dkr.ecr.sa-east-1.amazonaws.com
-```
-
-### 4.3. Baixar a imagem docker
-
-```bash
-docker pull 091448068257.dkr.ecr.sa-east-1.amazonaws.com/wlasaas/wsftp:latest
-docker tag 091448068257.dkr.ecr.sa-east-1.amazonaws.com/wlasaas/wsftp:latest wlasaas/wsftp-wla:latest
-```
-
----
-
-### 5. Clonar o Projeto WSFTP
+### 1. Clonar o Projeto WSFTP
 
 ```bash
 git clone https://github.com/wlasaas/wlasaas-wsftp-public.git wlasaas-wsftp
@@ -108,28 +30,23 @@ git clone https://github.com/wlasaas/wlasaas-wsftp-public.git wlasaas-wsftp
 
 ---
 
-### 6. Configurar docker-compose.yml
+### 2. Configurar docker-compose.yml
 
-Edite o arquivo \`docker-compose.yml\` para ajustar:
-
-- Portas da interface web e do SFTP
-- Usuário e senha do admin (por padrão \`wlasaas/wlasaas\`)
+Caso queira editar as portas WEB e SFTP edit arquivo \`docker-compose.yml\`
 
 ---
 
-### 7. Iniciar o WSFTP
+### 3. Iniciar o WSFTP
 
 ```bash
-# Corrigir permissões
-sudo sh ./fix-permissions.sh
+# iniciar instalação
+sudo sh ./install.sh
 
-# Subir o serviço
-docker-compose up -d
 ```
 
 ---
 
-### 8. Acesso Inicial
+### 4. Acesso Inicial
 
 - Painel web: \`http://IP_DO_SERVIDOR:PORTA\` (porta definida no docker-compose.yml)
 - Acesso SFTP: \`sftp://IP_DO_SERVIDOR:PORTA\` (ex: FileZilla) (porta definida no docker-compose.yml)
@@ -137,7 +54,7 @@ docker-compose up -d
 
 ---
 
-### 9. Customizações e Gerenciamento
+### 5. Customizações e Gerenciamento
 
 #### 1. Personalização da Interface
 
@@ -163,7 +80,7 @@ Em **Roles**, defina escopos de administração para segmentar o controle entre 
 
 ---
 
-### 10. Logs e Monitoramento
+### 6. Logs e Monitoramento
 
 ```bash
 # Ver status

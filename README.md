@@ -26,7 +26,7 @@ Este documento fornece um guia passo a passo para implantar o WSFTP — uma solu
 ### 1. Instalar Git
 
 ```bash
-dnf install -y git
+sudo dnf install -y git
 ```
 
 ---

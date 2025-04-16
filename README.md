@@ -47,6 +47,8 @@ Caso queira editar as portas WEB e SFTP edit arquivo \`docker-compose.yml\`
 ### 4. Iniciar o WSFTP
 
 ```bash
+# acessar pasta
+cd wlasaas-wsftp-public
 # iniciar instalação
 sudo sh ./install.sh
 
@@ -56,8 +58,8 @@ sudo sh ./install.sh
 
 ### 5. Acesso Inicial
 
-- Painel web: \`http://IP_DO_SERVIDOR:PORTA\` (porta definida no docker-compose.yml)
-- Acesso SFTP: \`sftp://IP_DO_SERVIDOR:PORTA\` (ex: FileZilla) (porta definida no docker-compose.yml)
+- Painel web: \`http://IP_DO_SERVIDOR:PORTA\` (8031 ou a porta definida no docker-compose.yml)
+- Acesso SFTP: \`sftp://IP_DO_SERVIDOR:PORTA\` (ex: FileZilla) (1222 ou porta definida no docker-compose.yml)
 - Usuário/senha padrão: \`wlasaas / wlasaas\`
 
 ---

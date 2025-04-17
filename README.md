@@ -50,7 +50,7 @@ Caso queira editar as portas WEB e SFTP edit arquivo \`docker-compose.yml\`
 # acessar pasta
 cd wlasaas-wsftp-public
 
-# dar permissao de execucao para o sctipt
+# dar permissão de execucao para o sctipt
 sudo chmod +x ./install.sh
 
 # iniciar instalação

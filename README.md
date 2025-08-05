@@ -106,3 +106,58 @@ docker-compose logs -f
 # Recursos
 docker stats
 ```
+
+---
+
+## Atualização da Imagem Docker
+
+Para atualizar o WSFTP para a versão mais recente, siga estes passos:
+
+### 1. Fazer Backup (Recomendado)
+
+```bash
+# Parar os containers
+docker-compose down
+
+# Fazer backup dos dados (se necessário)
+sudo cp -r ./data ./data_backup_$(date +%Y%m%d_%H%M%S)
+```
+
+### 2. Atualizar as Imagens Docker
+
+```bash
+# Remover imagens antigas
+docker-compose down
+docker system prune -f
+
+# Baixar e reconstruir as imagens
+docker-compose pull
+docker-compose build --no-cache
+
+# Ou simplesmente usar o script de instalação novamente
+sudo sh ./install.sh
+```
+
+### 3. Reiniciar os Serviços
+
+```bash
+# Iniciar com as novas imagens
+docker-compose up -d
+
+# Verificar se tudo está funcionando
+docker-compose ps
+docker-compose logs -f
+```
+
+### 4. Verificar a Atualização
+
+- Acesse o painel web para confirmar que está funcionando
+- Teste o acesso SFTP
+- Verifique os logs para identificar possíveis problemas
+
+### Notas Importantes
+
+- **Backup**: Sempre faça backup dos dados antes de atualizar
+- **Configurações**: As configurações personalizadas podem ser preservadas no diretório `./data`
+- **Compatibilidade**: Verifique se há mudanças significativas na nova versão
+- **Rollback**: Em caso de problemas, você pode voltar à versão anterior usando o backup

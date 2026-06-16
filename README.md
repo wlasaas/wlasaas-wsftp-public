@@ -136,6 +136,68 @@ docker exec wsftp sftpgo --version
 
 ---
 
+## Testar envio via SFTP
+
+Crie um usuário no painel (Users → Add) e teste a transferência. Substitua `IP`, a porta
+(`WSFTP_SFTP_PORT`, padrão `1222`) e o usuário pelos seus.
+
+### 1. Cliente `sftp` (interativo)
+
+```bash
+sftp -P 1222 ramalho@IP_DO_SERVIDOR
+# senha quando pedir
+sftp> put /caminho/local/arquivo.txt    # envia
+sftp> ls -l                             # confere no servidor
+sftp> get arquivo.txt baixado.txt       # baixa de volta
+sftp> bye
+```
+
+### 2. Batch (não-interativo, ex: validação rápida)
+
+```bash
+echo "teste $(date)" > /tmp/teste.txt
+sftp -P 1222 ramalho@IP_DO_SERVIDOR <<'EOF'
+put /tmp/teste.txt
+ls -l
+bye
+EOF
+```
+
+### 3. Roundtrip automatizado com senha (sshpass)
+
+Faz upload + download + compara — útil para um smoke test de transferência:
+
+```bash
+echo "wsftp smoke $(date)" > /tmp/up.txt
+SSHPASS='Mudar123' sshpass -e \
+  sftp -P 1222 -oStrictHostKeyChecking=no -oPreferredAuthentications=password \
+  ramalho@IP_DO_SERVIDOR <<'EOF'
+put /tmp/up.txt
+get up.txt /tmp/down.txt
+bye
+EOF
+diff /tmp/up.txt /tmp/down.txt && echo "OK: upload/download íntegros"
+```
+
+> `sshpass` só para automação/teste. No uso normal prefira digitar a senha ou usar chave pública.
+
+### 4. Via `scp`
+
+```bash
+scp -P 1222 /caminho/local/arquivo.txt ramalho@IP_DO_SERVIDOR:/    # envia
+scp -P 1222 ramalho@IP_DO_SERVIDOR:/arquivo.txt ./                 # baixa
+```
+
+### 5. Cliente gráfico (FileZilla, WinSCP)
+
+- Protocolo: **SFTP - SSH File Transfer Protocol**
+- Host: `IP_DO_SERVIDOR` · Porta: `1222` (ou a sua `WSFTP_SFTP_PORT`)
+- Usuário/senha: os do usuário criado no painel
+
+> Os arquivos enviados ficam em `docker/data/<usuário>/` no servidor.
+
+---
+
 ## Troubleshooting
 
 | Sintoma | Causa provável / solução |

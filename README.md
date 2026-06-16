@@ -136,6 +136,64 @@ docker exec wsftp sftpgo --version
 
 ---
 
+## Notificações via webhook (Event Manager)
+
+O WSFTP dispara um `POST` HTTP num endpoint seu a cada evento de arquivo (recebido, enviado, apagado…).
+É **nativo** (Event Manager) — configurado no painel, sem plugin e sem rebuild. São 2 passos:
+
+### 1. Criar a Ação — `Event Manager → Actions → Add`
+
+- **Name**: `webhook-eventos`
+- **Type**: `HTTP`
+- **Server URL**: o endpoint que recebe (ex: `https://seu-endpoint/webhook`)
+- **HTTP headers**: `Content-Type` = `application/json`
+- **Method**: `POST`
+- **Body** (placeholders são substituídos pelo SFTPGo):
+
+```json
+{
+  "evento": "{{.Event}}",
+  "usuario": "{{.Name}}",
+  "caminho": "{{.VirtualPath}}",
+  "tamanho": {{.FileSize}},
+  "protocolo": "{{.Protocol}}",
+  "ip": "{{.IP}}",
+  "timestamp": "{{.Timestamp}}",
+  "status": "{{.StatusString}}"
+}
+```
+
+→ **Save**
+
+### 2. Criar a Regra — `Event Manager → Rules → Add`
+
+- **Name**: `regra-webhook`
+- **Trigger**: `Filesystem events`
+- **Fs events**: marque os que quer notificar:
+  - `upload` → arquivo **recebido**
+  - `download` → arquivo **enviado**
+  - `delete` → arquivo **apagado**
+  - (outros: `rename`, `mkdir`, `rmdir`, `copy`, `first-upload`…)
+- (opcional) **Path/Protocol filters**: restringe a pastas ou protocolos específicos
+- **Actions**: selecione `webhook-eventos`
+
+→ **Save**. Pronto — a cada evento marcado, o SFTPGo faz `POST` no seu URL.
+
+### Placeholders disponíveis
+
+`{{.Event}}` · `{{.Name}}` (usuário) · `{{.VirtualPath}}` · `{{.FsPath}}` · `{{.ObjectName}}` ·
+`{{.FileSize}}` · `{{.Protocol}}` · `{{.IP}}` · `{{.Timestamp}}` · `{{.StatusString}}` (`OK`/`KO`).
+
+### Observações
+
+- **Assíncrono por padrão** (não atrasa a transferência). Para validar **antes** (eventos `pre-upload`,
+  `pre-delete`), marque **Synchronous execution** na ação dentro da regra.
+- Tudo persiste no banco do WSFTP — vale por servidor, não precisa rebuild da imagem.
+- **Testar**: faça um upload (ver seção abaixo) e confira a chamada no seu endpoint; erros aparecem em
+  `docker compose logs -f`.
+
+---
+
 ## Testar envio via SFTP
 
 Crie um usuário no painel (Users → Add) e teste a transferência. Substitua `IP`, a porta

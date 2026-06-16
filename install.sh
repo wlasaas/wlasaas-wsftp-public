@@ -16,6 +16,10 @@ trap 'die "Falha na linha $LINENO. Instalação abortada."' ERR
 
 cd "$(dirname "$0")"
 
+# Garante que binários de /usr/local/bin (ex: aws cli v2) estejam no PATH mesmo
+# sob sudo (o secure_path do sudo costuma omitir /usr/local/bin).
+export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
+
 # ---- Root -------------------------------------------------------------------
 [ "$(id -u)" -eq 0 ] || die "Rode como root (sudo ./install.sh)"
 

@@ -1,125 +1,116 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#
+# install.sh — instala/atualiza o WSFTP no servidor do cliente.
+# Baixa a imagem personalizada do ECR (privado) e sobe via docker compose.
+# À prova de falhas: aborta em qualquer erro, valida pré-requisitos e verifica a saúde no final.
+#
+# Uso:  sudo ./install.sh
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+set -euo pipefail
 
-# Function to print status messages
-print_status() {
-    echo -e "${GREEN}[+] $1${NC}"
-}
+GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; NC='\033[0m'
+info()  { echo -e "${GREEN}[+] $1${NC}"; }
+warn()  { echo -e "${YELLOW}[!] $1${NC}"; }
+die()   { echo -e "${RED}[x] $1${NC}" >&2; exit 1; }
+trap 'die "Falha na linha $LINENO. Instalação abortada."' ERR
 
-# Function to print error messages
-print_error() {
-    echo -e "${RED}[!] $1${NC}"
-}
+cd "$(dirname "$0")"
 
-# Function to check if command was successful
-check_status() {
-    if [ $? -eq 0 ]; then
-        print_status "$1"
-    else
-        print_error "$2"
-        exit 1
-    fi
-}
+# ---- Root -------------------------------------------------------------------
+[ "$(id -u)" -eq 0 ] || die "Rode como root (sudo ./install.sh)"
 
-# Check if script is running as root
-if [ "$EUID" -ne 0 ]; then 
-    print_error "Please run as root (use sudo)"
-    exit 1
+# ---- .env -------------------------------------------------------------------
+if [ ! -f .env ]; then
+  [ -f .env.example ] || die ".env.example não encontrado"
+  cp .env.example .env
+  warn ".env criado a partir do .env.example. REVISE a senha/versão/portas e rode novamente."
+  exit 1
+fi
+set -a; . ./.env; set +a
+: "${WSFTP_VERSION:?defina WSFTP_VERSION no .env}"
+: "${AWS_REGION:?defina AWS_REGION no .env}"
+: "${ECR_REGISTRY:?defina ECR_REGISTRY no .env}"
+WSFTP_WEB_PORT="${WSFTP_WEB_PORT:-8031}"
+
+# ---- Dependências -----------------------------------------------------------
+install_pkg() { dnf install -y "$@" >/dev/null; }
+
+info "Atualizando pacotes do sistema..."
+dnf update -y >/dev/null || warn "dnf update falhou (seguindo)"
+
+command -v curl >/dev/null || install_pkg curl
+command -v git  >/dev/null || install_pkg git
+
+if ! command -v docker >/dev/null; then
+  info "Instalando Docker..."
+  dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo >/dev/null
+  install_pkg docker-ce docker-ce-cli containerd.io
+  systemctl enable --now docker
+else
+  info "Docker já instalado."
+  systemctl is-active --quiet docker || systemctl enable --now docker
 fi
 
-# 1. System Update and Dependencies
-print_status "Updating system packages..."
-dnf update -y
-check_status "System updated successfully" "Failed to update system"
-
-print_status "Installing basic dependencies..."
-dnf install -y yum-utils device-mapper-persistent-data lvm2 curl
-check_status "Dependencies installed successfully" "Failed to install dependencies"
-
-# 2. Docker Installation
-print_status "Checking if Docker is already installed..."
-if command -v docker &> /dev/null; then
-    print_status "Docker is already installed"
+# docker compose v2 (plugin) com fallback para docker-compose v1
+if docker compose version >/dev/null 2>&1; then
+  DC="docker compose"
+elif command -v docker-compose >/dev/null; then
+  DC="docker-compose"
 else
-    print_status "Installing Docker..."
-    dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-    dnf install -y docker-ce docker-ce-cli containerd.io
-    systemctl enable --now docker
-    check_status "Docker installed and started successfully" "Failed to install Docker"
-fi
-
-# 3. Docker Compose Installation
-print_status "Checking if Docker Compose is already installed..."
-if command -v docker-compose &> /dev/null; then
-    print_status "Docker Compose is already installed"
-else
-    print_status "Installing Docker Compose..."
+  info "Instalando Docker Compose..."
+  install_pkg docker-compose-plugin >/dev/null 2>&1 && DC="docker compose" || {
     curl -L "https://github.com/docker/compose/releases/download/v2.24.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
     chmod +x /usr/local/bin/docker-compose
-    check_status "Docker Compose installed successfully" "Failed to install Docker Compose"
+    DC="docker-compose"
+  }
 fi
+info "Usando: $DC"
 
-# 4. Git Installation
-print_status "Checking if Git is already installed..."
-if command -v git &> /dev/null; then
-    print_status "Git is already installed"
-else
-    print_status "Installing Git..."
-    dnf install -y git
-    check_status "Git installed successfully" "Failed to install Git"
+command -v aws >/dev/null || { info "Instalando AWS CLI..."; install_pkg awscli; }
+
+# ---- Credenciais AWS (read-only ECR, fornecidas pela WLA) -------------------
+if ! aws sts get-caller-identity >/dev/null 2>&1; then
+  warn "Credenciais AWS não configuradas. Informe as chaves IAM read-only do ECR (fornecidas pela WLA):"
+  read -r  -p "AWS Access Key ID: " aws_access_key
+  read -rs -p "AWS Secret Access Key: " aws_secret_key; echo
+  aws configure set aws_access_key_id "$aws_access_key"
+  aws configure set aws_secret_access_key "$aws_secret_key"
+  aws configure set region "$AWS_REGION"
+  aws configure set output "json"
+  aws sts get-caller-identity >/dev/null || die "Credenciais AWS inválidas"
 fi
+info "Credenciais AWS OK."
 
-# 5. AWS CLI Installation
-print_status "Checking if AWS CLI is already installed..."
-if command -v aws &> /dev/null; then
-    print_status "AWS CLI is already installed"
-else
-    print_status "Installing AWS CLI..."
-    dnf install -y awscli
-    check_status "AWS CLI installed successfully" "Failed to install AWS CLI"
-fi
+# ---- Login ECR + pull -------------------------------------------------------
+info "Login no ECR ($AWS_REGION)..."
+aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
-# 6. AWS Configuration
-print_status "Configuring AWS CLI..."
-echo -e "${YELLOW}Please enter your AWS credentials:${NC}"
-read -p "AWS Access Key ID: " aws_access_key
-read -p "AWS Secret Access Key: " aws_secret_key
+info "Baixando imagem WSFTP $WSFTP_VERSION..."
+$DC pull
 
-# Configure AWS CLI
-aws configure set aws_access_key_id "$aws_access_key"
-aws configure set aws_secret_access_key "$aws_secret_key"
-aws configure set region "sa-east-1"
-aws configure set output "json"
-check_status "AWS CLI configured successfully" "Failed to configure AWS CLI"
+# ---- Diretórios de dados (perms do usuário do container: 1000:1000) ---------
+mkdir -p docker/data docker/backups docker/db
+chown -R 1000:1000 docker/data docker/backups docker/db
 
-# 7. ECR Login and Image Pull
-print_status "Logging into AWS ECR and pulling image..."
-aws ecr get-login-password --region sa-east-1 | docker login --username AWS --password-stdin 091448068257.dkr.ecr.sa-east-1.amazonaws.com
-docker pull 091448068257.dkr.ecr.sa-east-1.amazonaws.com/wlasaas/wsftp:latest
-docker tag 091448068257.dkr.ecr.sa-east-1.amazonaws.com/wlasaas/wsftp:latest wlasaas/wsftp-wla:latest
-check_status "Docker image pulled and tagged successfully" "Failed to pull Docker image"
+# ---- Sobe -------------------------------------------------------------------
+info "Subindo o serviço..."
+$DC up -d
 
-# 8. Fix Permissions and Start Service
-print_status "Setting up permissions and starting service..."
-mkdir -p docker/backups
-mkdir -p docker/db
-mkdir -p docker/data
-chmod -R 777 docker
-docker-compose up -d
-check_status "Service started successfully" "Failed to start service"
+# ---- Verificação de saúde ---------------------------------------------------
+info "Verificando saúde (healthz) na porta $WSFTP_WEB_PORT..."
+ok=""
+for _ in $(seq 1 30); do
+  if [ "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$WSFTP_WEB_PORT/healthz" || true)" = "200" ]; then
+    ok=1; break
+  fi
+  sleep 2
+done
+[ -n "$ok" ] || die "Serviço não respondeu healthz. Veja: $DC logs"
 
-# Final Instructions
-echo -e "\n${GREEN}=== Installation Complete ===${NC}"
-echo -e "${YELLOW}You can now access:${NC}"
-echo -e "- Web Panel: http://YOUR_SERVER_IP:8031"
-echo -e "- SFTP: sftp://YOUR_SERVER_IP:1222"
-echo -e "Default credentials: wlasaas / wlasaas"
-echo -e "\n${YELLOW}Don't forget to:${NC}"
-echo -e "1. Update the default credentials"
-echo -e "2. Configure your firewall rules"
-echo -e "3. Check the service status using 'docker-compose ps'" 
+# ---- Resumo -----------------------------------------------------------------
+IP="$(hostname -I 2>/dev/null | awk '{print $1}')"; IP="${IP:-SEU_IP}"
+echo -e "\n${GREEN}=== Instalação concluída (WSFTP $WSFTP_VERSION) ===${NC}"
+echo -e "- Painel Web: http://$IP:$WSFTP_WEB_PORT"
+echo -e "- SFTP:       sftp://$IP:${WSFTP_SFTP_PORT:-1222}"
+echo -e "- Admin:      ${WSFTP_ADMIN_USER:-wlasaas} (senha definida no .env)"
+echo -e "${YELLOW}Lembre: troque a senha padrão e configure o firewall.${NC}"

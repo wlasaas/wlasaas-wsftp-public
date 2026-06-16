@@ -1,28 +1,24 @@
-version: '3.8'
-
+# WSFTP — deploy no cliente. A imagem já vem com TODAS as customizações assadas (branding, idioma
+# pt, logos, favicon). Aqui montamos apenas volumes de DADOS. Configure tudo via .env.
 services:
   wsftp:
-    image: wlasaas/wsftp-wla:latest
+    image: ${ECR_REGISTRY:-091448068257.dkr.ecr.sa-east-1.amazonaws.com}/wlasaas/wsftp:${WSFTP_VERSION:-latest}
     container_name: wsftp
     restart: unless-stopped
-    user: "1000:1000"  # Define o usuário wsftp explicitamente
+    user: "1000:1000"
     ports:
-      - "8031:8080"     # Porta para o WebAdmin
-      - "1222:2022"     # Porta SFTP/SSH
+      - "${WSFTP_WEB_PORT:-8031}:8080"     # Painel Web (WebAdmin/WebClient)
+      - "${WSFTP_SFTP_PORT:-1222}:2022"    # SFTP/SSH
     volumes:
-      - ./docker/data:/srv/sftpgo/data
-      - ./docker/backups:/srv/sftpgo/backups
-      - ./docker/static/favicon.png:/usr/share/sftpgo/static/favicon.png  # Volume para favicon
-      - ./docker/static/img:/usr/share/sftpgo/static/img  # Volume para imagens estáticas
-      - ./docker/static/locales:/usr/share/sftpgo/static/locales  # Volume para traduções
-      - ./docker/config/wsftp.json:/etc/sftpgo/sftpgo.json  # Volume para o arquivo de configuração principal
-      - ./docker/db:/var/lib/sftpgo  # Volume para o banco de dados SQLite
+      - ./docker/data:/srv/sftpgo/data       # arquivos dos usuários
+      - ./docker/backups:/srv/sftpgo/backups # backups gerados pelo SFTPGo
+      - ./docker/db:/var/lib/sftpgo          # banco SQLite (config, usuários, etc.)
     environment:
-      - SFTPGO_LOG_FILE_PATH=""  # Logs para stdout
-      - SFTPGO_DEFAULT_ADMIN_USERNAME=wlasaas  # Usuário admin padrão
-      - SFTPGO_DEFAULT_ADMIN_PASSWORD=wlasaas  # Senha admin padrão
-      - SFTPGO_DATA_PROVIDER__NAME=wsftp.db  # Nome do arquivo do banco de dados
-      - SFTPGO_DATA_PROVIDER__DRIVER=sqlite  # Driver do banco de dados
+      - SFTPGO_LOG_FILE_PATH=""              # logs para stdout (docker logs)
+      - SFTPGO_DEFAULT_ADMIN_USERNAME=${WSFTP_ADMIN_USER:-wlasaas}
+      - SFTPGO_DEFAULT_ADMIN_PASSWORD=${WSFTP_ADMIN_PASSWORD:-wlasaas}
+      - SFTPGO_DATA_PROVIDER__DRIVER=sqlite
+      - SFTPGO_DATA_PROVIDER__NAME=sftpgo.db
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:8080/healthz"]
       interval: 30s

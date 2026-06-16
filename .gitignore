@@ -1,7 +1,17 @@
 .history
 .DS_Store
+
+# segredos / ambiente local
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# dados de runtime (não versionar)
+docker/data/*
+docker/db/*
+docker/backups/*
+!docker/data/.gitkeep
+!docker/db/.gitkeep
+!docker/backups/.gitkeep

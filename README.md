@@ -1,163 +1,170 @@
-# Guia de Implantação do WSFTP (Red Hat-based)
+# WSFTP — Guia de Implantação
 
-Este documento fornece um guia passo a passo para implantar o WSFTP — uma solução robusta de transferência de arquivos que suporta SFTP, FTPS, HTTPS e WebDAV — em um servidor Linux com base em Red Hat (RHEL, CentOS, Oracle Linux, AlmaLinux, etc) usando Docker e Docker Compose.
+WSFTP é uma solução de transferência de arquivos (SFTP, FTPS, HTTPS, WebDAV) baseada no SFTPGo, com
+branding e idioma português do Brasil da WLA. Este repositório contém o necessário para **implantar nos
+servidores dos clientes** (Linux Red Hat-based: RHEL, CentOS, Oracle Linux, AlmaLinux).
 
-## Requisitos do Sistema
+A imagem Docker já vem com **tudo customizado assado dentro** (branding, idioma pt, logos, favicon).
+Aqui você só baixa a versão certa do registry e sobe — sem editar arquivos de configuração.
 
-### Requisitos Mínimos
-- Sistema operacional: RedHat, CentOS, Oracle Linux, AlmaLinux, etc
-- Docker: versão 20.10 ou superior
-- Docker Compose: versão 2.0 ou superior
-- Acesso root ou sudo
-- 2GB de RAM
-- 20GB de espaço em disco
+## Como a imagem é produzida (visão geral)
 
-### Requisitos Recomendados
-- 4GB de RAM ou mais
-- 50GB de espaço em disco
-- Processador com 2 núcleos ou mais
-- Conexão de internet estável
+```
+[bump FROM sftpgo:vX]  ->  release.sh  ->  ECR privado (:X + :latest)
+   (repo privado WLA)      build+smoke+push          |
+                                                      v
+   VOCÊ (implantação):   install.sh  <-  este repo (.env: WSFTP_VERSION=X)
+       (login ECR ro)    pull :X + up + healthz
+```
+
+A WLA builda e publica a imagem no ECR. Você recebe **credenciais IAM somente-leitura** para baixá-la e
+implanta com o `install.sh`. Nada de imagem é compilado no servidor do cliente.
+
+---
+
+## Requisitos
+
+| | Mínimo | Recomendado |
+|-|--------|-------------|
+| SO | RHEL/CentOS/Oracle/AlmaLinux | idem |
+| RAM | 2 GB | 4 GB+ |
+| Disco | 20 GB | 50 GB+ |
+| Acesso | root/sudo | root/sudo |
+
+Mais: Docker 20.10+, Docker Compose v2, e **credenciais IAM read-only do ECR** (fornecidas pela WLA).
+O `install.sh` instala Docker/Compose/Git/AWS CLI se faltarem.
 
 ---
 
 ## Instalação
 
-### 1. Instalar Git
-
 ```bash
+# 1. Clonar
 sudo dnf install -y git
+git clone https://github.com/wlasaas/wlasaas-wsftp-public.git wsftp
+cd wsftp
+
+# 2. Configurar (versão, portas, senha)
+cp .env.example .env
+nano .env            # ajuste WSFTP_VERSION, portas e WSFTP_ADMIN_PASSWORD
+
+# 3. Instalar (pede as credenciais IAM read-only do ECR na 1ª vez)
+chmod +x install.sh
+sudo ./install.sh
 ```
+
+> Na primeira execução, se o `.env` não existir, o script o cria a partir do `.env.example` e pede para
+> revisar — rode `sudo ./install.sh` de novo após ajustar.
+
+### Acesso inicial
+
+- Painel Web: `http://IP_DO_SERVIDOR:8031` (ou a `WSFTP_WEB_PORT` do `.env`)
+- SFTP: `sftp://IP_DO_SERVIDOR:1222` (ou a `WSFTP_SFTP_PORT`)
+- Admin: `wlasaas` / senha definida no `.env`
+
+Troque a senha padrão e configure o firewall após o primeiro acesso.
 
 ---
 
-### 2. Clonar o Projeto WSFTP
+## Comandos de linha (operação)
+
+Rode dentro da pasta do projeto. Use `docker compose` (v2); se sua máquina só tiver o antigo, troque por
+`docker-compose`.
+
+| Ação | Comando |
+|------|---------|
+| Status dos containers | `docker compose ps` |
+| Logs (seguir) | `docker compose logs -f` |
+| Uso de recursos | `docker stats wsftp` |
+| Parar | `docker compose down` |
+| Iniciar | `docker compose up -d` |
+| Reiniciar | `docker compose restart` |
+| **Atualizar versão** | editar `WSFTP_VERSION` no `.env` → `sudo ./install.sh` (ou `docker compose pull && docker compose up -d`) |
+| **Rollback** | voltar `WSFTP_VERSION` p/ a tag anterior no `.env` → `docker compose up -d` |
+| Limpar imagens antigas | `docker image prune -f` |
+
+### Backup e restore dos dados
 
 ```bash
-git clone https://github.com/wlasaas/wlasaas-wsftp-public.git wlasaas-wsftp
+# Backup (com o serviço parado, para consistência do SQLite)
+docker compose down
+tar czf wsftp-backup-$(date +%F).tgz docker/data docker/db docker/backups
+docker compose up -d
+
+# Restore
+docker compose down
+tar xzf wsftp-backup-AAAA-MM-DD.tgz
+chown -R 1000:1000 docker/data docker/db docker/backups
+docker compose up -d
 ```
 
----
-
-### 3. Configurar docker-compose.yml
-
-Caso queira editar as portas WEB e SFTP edit arquivo \`docker-compose.yml\`
-
----
-
-### 4. Iniciar o WSFTP
+### Comandos administrativos do SFTPGo (dentro do container)
 
 ```bash
-# acessar pasta
-cd wlasaas-wsftp-public
+docker exec wsftp sftpgo <comando>
+docker exec -it wsftp sftpgo <comando>   # quando for interativo
+```
 
-# dar permissão de execucao para o sctipt
-sudo chmod +x ./install.sh
+| Comando | Função |
+|---------|--------|
+| `resetpwd <usuário>` | Reseta a senha de um administrador |
+| `ping` | Health check |
+| `--version` | Versão do binário SFTPGo |
+| `initprovider` | Inicializa/migra o banco |
+| `revertprovider` | Reverte o provider à versão anterior |
+| `acme run` | Emite certificados TLS (Let's Encrypt) |
+| `smtptest` | Testa a configuração SMTP |
+| `gen completion \| man` | Gera autocomplete / man pages |
 
-# iniciar instalação
-sudo sh ./install.sh
+Exemplos:
 
+```bash
+docker exec wsftp sftpgo ping
+docker exec wsftp sftpgo resetpwd wlasaas
+docker exec wsftp sftpgo --version
 ```
 
 ---
 
-### 5. Acesso Inicial
+## Gerenciamento pelo painel
 
-- Painel web: \`http://IP_DO_SERVIDOR:PORTA\` (8031 ou a porta definida no docker-compose.yml)
-- Acesso SFTP: \`sftp://IP_DO_SERVIDOR:PORTA\` (ex: FileZilla) (1222 ou porta definida no docker-compose.yml)
-- Usuário/senha padrão: \`wlasaas / wlasaas\`
-
----
-
-### 6. Customizações e Gerenciamento
-
-#### 1. Personalização da Interface
-
-Painel: **Server manager > Configurations**
-- Altere nome e logo
-
-#### 2. Gerenciamento de Usuários
-
-Painel: **Users > Add**
-- Campos obrigatórios: \`Username\`, \`Password\`, \`File system Storage\`
-- File system Storage do tipo SFTP exige:
-  - \`Endpoint\` (IP e porta)
-  - \`Username\`, \`Password\`
-  - (opcional) \`SFTP root directory\`
-
-#### 3. Grupos
-
-Em **Groups** você cria grupos de usuários com acesso compartilhado a pastas específicas.
-
-#### 4. Perfis (Roles)
-
-Em **Roles**, defina escopos de administração para segmentar o controle entre administradores diferentes.
+- **Personalização**: Server Manager → Configurations (nome, logo — persiste no banco).
+- **Usuários**: Users → Add (obrigatórios: `Username`, `Password`, `File system Storage`).
+- **Grupos**: Groups (acesso compartilhado a pastas).
+- **Perfis (Roles)**: Roles (segmentação de administração).
+- **Idioma**: seletor no rodapé do login → **Português (Brasil)**.
 
 ---
 
-### 7. Logs e Monitoramento
+## Troubleshooting
 
-```bash
-# Ver status
-docker-compose ps
-
-# Logs
-docker-compose logs -f
-
-# Recursos
-docker stats
-```
+| Sintoma | Causa provável / solução |
+|---------|--------------------------|
+| `healthz` não responde 200 | Ver `docker compose logs -f`. Porta web ocupada? Ajuste `WSFTP_WEB_PORT` no `.env`. |
+| Falha no login do ECR | Credenciais IAM inválidas/expiradas. Rode `aws sts get-caller-identity`. Peça novas chaves à WLA. |
+| `port is already allocated` | Outra aplicação usa a porta. Troque `WSFTP_WEB_PORT`/`WSFTP_SFTP_PORT` no `.env` e `docker compose up -d`. |
+| Permissão negada em `docker/data` | `chown -R 1000:1000 docker/data docker/db docker/backups`. |
+| Mudou a versão e não atualizou | `docker compose pull` antes do `up -d`; confira `WSFTP_VERSION` no `.env`. |
+| Esqueceu a senha do admin | `docker exec wsftp sftpgo resetpwd <usuário>`. |
 
 ---
 
-## Atualização da Imagem Docker
-
-Para atualizar o WSFTP para a versão mais recente, siga estes passos:
-
-### 1. Fazer Backup (Recomendado)
+## Atualização — passo a passo seguro
 
 ```bash
-# Parar os containers
-docker-compose down
+# 1. Backup
+docker compose down
+tar czf wsftp-backup-$(date +%F).tgz docker/data docker/db docker/backups
 
-# Fazer backup dos dados (se necessário)
-sudo cp -r ./data ./data_backup_$(date +%Y%m%d_%H%M%S)
+# 2. Fixar a nova versão
+nano .env            # WSFTP_VERSION=<nova>
+
+# 3. Baixar e subir
+sudo ./install.sh    # faz login no ECR, pull e up com verificação de saúde
+
+# 4. Conferir
+docker compose ps
+docker exec wsftp sftpgo --version
 ```
 
-### 2. Atualizar as Imagens Docker
-
-```bash
-# Remover imagens antigas
-docker-compose down
-docker system prune -f
-
-# Baixar e reconstruir as imagens
-docker-compose pull
-docker-compose build --no-cache
-
-# Ou simplesmente usar o script de instalação novamente
-sudo sh ./install.sh
-```
-
-### 3. Reiniciar os Serviços
-
-```bash
-# Iniciar com as novas imagens
-docker-compose up -d
-
-# Verificar se tudo está funcionando
-docker-compose ps
-docker-compose logs -f
-```
-
-### 4. Verificar a Atualização
-
-- Acesse o painel web para confirmar que está funcionando
-- Teste o acesso SFTP
-- Verifique os logs para identificar possíveis problemas
-
-### Notas Importantes
-
-- **Backup**: Sempre faça backup dos dados antes de atualizar
-- **Configurações**: As configurações personalizadas podem ser preservadas no diretório `./data`
-- **Compatibilidade**: Verifique se há mudanças significativas na nova versão
-- **Rollback**: Em caso de problemas, você pode voltar à versão anterior usando o backup
+Problema? **Rollback**: volte `WSFTP_VERSION` para a tag anterior no `.env` e `docker compose up -d`.

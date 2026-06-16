@@ -33,10 +33,9 @@ set -a; . ./.env; set +a
 WSFTP_WEB_PORT="${WSFTP_WEB_PORT:-8031}"
 
 # ---- Dependências -----------------------------------------------------------
+# Instala apenas o que falta. NÃO faz "dnf update" do sistema inteiro (evita
+# atualizar/reiniciar o Docker e derrubar outros containers no servidor).
 install_pkg() { dnf install -y "$@" >/dev/null; }
-
-info "Atualizando pacotes do sistema..."
-dnf update -y >/dev/null || warn "dnf update falhou (seguindo)"
 
 command -v curl >/dev/null || install_pkg curl
 command -v git  >/dev/null || install_pkg git

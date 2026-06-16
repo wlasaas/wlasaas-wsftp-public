@@ -144,7 +144,7 @@ Crie um usuário no painel (Users → Add) e teste a transferência. Substitua `
 ### 1. Cliente `sftp` (interativo)
 
 ```bash
-sftp -P 1222 ramalho@IP_DO_SERVIDOR
+sftp -P 1222 USUARIO@IP_DO_SERVIDOR
 # senha quando pedir
 sftp> put /caminho/local/arquivo.txt    # envia
 sftp> ls -l                             # confere no servidor
@@ -156,7 +156,7 @@ sftp> bye
 
 ```bash
 echo "teste $(date)" > /tmp/teste.txt
-sftp -P 1222 ramalho@IP_DO_SERVIDOR <<'EOF'
+sftp -P 1222 USUARIO@IP_DO_SERVIDOR <<'EOF'
 put /tmp/teste.txt
 ls -l
 bye
@@ -169,9 +169,9 @@ Faz upload + download + compara — útil para um smoke test de transferência:
 
 ```bash
 echo "wsftp smoke $(date)" > /tmp/up.txt
-SSHPASS='Mudar123' sshpass -e \
+SSHPASS='SENHA' sshpass -e \
   sftp -P 1222 -oStrictHostKeyChecking=no -oPreferredAuthentications=password \
-  ramalho@IP_DO_SERVIDOR <<'EOF'
+  USUARIO@IP_DO_SERVIDOR <<'EOF'
 put /tmp/up.txt
 get up.txt /tmp/down.txt
 bye
@@ -184,8 +184,8 @@ diff /tmp/up.txt /tmp/down.txt && echo "OK: upload/download íntegros"
 ### 4. Via `scp`
 
 ```bash
-scp -P 1222 /caminho/local/arquivo.txt ramalho@IP_DO_SERVIDOR:/    # envia
-scp -P 1222 ramalho@IP_DO_SERVIDOR:/arquivo.txt ./                 # baixa
+scp -P 1222 /caminho/local/arquivo.txt USUARIO@IP_DO_SERVIDOR:/    # envia
+scp -P 1222 USUARIO@IP_DO_SERVIDOR:/arquivo.txt ./                 # baixa
 ```
 
 ### 5. Cliente gráfico (FileZilla, WinSCP)

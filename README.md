@@ -183,6 +183,56 @@ chown -R 1000:1000 /wlasaas
 
 ---
 
+## Pastas virtuais (Virtual Folders)
+
+Pasta virtual é um storage qualquer montado em um path dentro do espaço do usuário SFTP.
+O usuário vê tudo em uma árvore única; por baixo, cada pasta pode usar um storage diferente.
+
+```
+Usuário: caio  (root: /wlasaas/caio — disco local)
+│
+├── /                  → /wlasaas/caio          (root do usuário)
+└── /shared            → /wlasaas/shared        (pasta virtual compartilhada)
+```
+
+### Casos de uso
+
+| Caso | Como usar |
+|------|-----------|
+| Pasta compartilhada entre N usuários | Criar 1 virtual folder, montar em cada usuário no mesmo mount path |
+| Área de entrada (S3) + arquivo (local) | `/inbox` → S3, `/` → local |
+| Quota separada por área | Cada virtual folder tem quota própria, independente da quota do usuário |
+
+### Como configurar
+
+**1. Criar a pasta virtual** — `Virtual Folders → Add`:
+- **Name**: identificador interno (ex: `shared`)
+- **Storage**: `Local disk` (ou S3, SFTP remoto, etc.)
+- **Root directory**: path no servidor (ex: `/wlasaas/shared`)
+
+> Se usar Local disk, o path precisa estar montado no container via `volumes` no `docker-compose.yml`
+> e acessível pelo uid `1000` (ver seção [Mapeando diretórios reais do host](#mapeando-diretórios-reais-do-host-para-usuários)).
+
+**2. Atribuir ao usuário** — `Users → Edit → Virtual Folders → Add`:
+- **Mount path**: onde aparece para o usuário (ex: `/shared`)
+- **Folder**: selecionar a pasta virtual criada
+- **Quota size/files**:
+  - `-1` = usa a quota do usuário (não usar em pastas compartilhadas)
+  - `0` = ilimitado
+  - valor = quota própria da pasta
+
+**3. Criar o diretório no host e ajustar permissões**:
+
+```bash
+mkdir -p /wlasaas/shared
+setfacl -m u:1000:rwx /wlasaas/shared   # permite escrita pelo container
+```
+
+> **Pastas compartilhadas**: nunca use quota `-1` quando a mesma virtual folder for montada em
+> múltiplos usuários — cada um contaria os mesmos arquivos separadamente na sua quota.
+
+---
+
 ## Notificações via webhook (Event Manager)
 
 O WSFTP dispara um `POST` HTTP num endpoint seu a cada evento de arquivo (recebido, enviado, apagado…).

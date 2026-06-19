@@ -139,6 +139,50 @@ Cada usuário (ou pasta virtual) pode usar um storage diferente, configurado em 
 
 ---
 
+## Mapeando diretórios reais do host para usuários
+
+Por padrão os arquivos ficam em `docker/data/<usuário>/` (dentro da pasta do projeto).
+Se quiser que cada usuário SFTP use um diretório já existente no host (ex: `/wlasaas/caio`),
+são necessários dois ajustes:
+
+### 1. Adicionar o volume no `docker-compose.yml`
+
+```yaml
+volumes:
+  - ./docker/data:/srv/sftpgo/data
+  - ./docker/backups:/srv/sftpgo/backups
+  - ./docker/db:/var/lib/sftpgo
+  - /wlasaas:/wlasaas          # ← monta a raiz dos diretórios dos usuários
+```
+
+Depois recriar o container:
+
+```bash
+docker compose up -d
+```
+
+### 2. Configurar o Root directory do usuário no painel
+
+Em **Users → Add/Edit → File System**:
+- **Storage**: `Local disk`
+- **Root directory**: `/wlasaas/<usuario>` (ex: `/wlasaas/caio`)
+
+### 3. Ajustar permissões no host
+
+O container roda como uid `1000`. Os diretórios dos usuários no host devem ser acessíveis por esse uid:
+
+```bash
+chown -R 1000:1000 /wlasaas/caio
+# ou para todos de uma vez:
+chown -R 1000:1000 /wlasaas
+```
+
+> **Por que é necessário o volume?** O container enxerga apenas os paths montados via `volumes`.
+> Sem o mount de `/wlasaas`, o path `/wlasaas/caio` não existe dentro do container e o login SFTP
+> falha com `realpath .: no such file`.
+
+---
+
 ## Notificações via webhook (Event Manager)
 
 O WSFTP dispara um `POST` HTTP num endpoint seu a cada evento de arquivo (recebido, enviado, apagado…).
@@ -151,7 +195,7 @@ O WSFTP dispara um `POST` HTTP num endpoint seu a cada evento de arquivo (recebi
 - **Server URL**: o endpoint que recebe (ex: `https://seu-endpoint/webhook`)
 - **HTTP headers**: `Content-Type` = `application/json`
 - **Method**: `POST`
-- **Body** (placeholders são substituídos pelo SFTPGo):
+- **Body** (placeholders são substituídos automaticamente):
 
 ```json
 {

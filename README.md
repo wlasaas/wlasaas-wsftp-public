@@ -139,6 +139,29 @@ Cada usuário (ou pasta virtual) pode usar um storage diferente, configurado em 
 
 ---
 
+## Onde ficam os arquivos dos usuários (padrão)
+
+Se o **Root directory** do usuário for deixado em branco, o WSFTP cria automaticamente um
+subdiretório com o nome do usuário dentro de `docker/data/`:
+
+```
+Container: /srv/sftpgo/data/<username>
+                    ↕ volume mount
+Host:       <pasta-do-projeto>/docker/data/<username>
+```
+
+Exemplo — usuário `joao` com root em branco, projeto em `/opt/wsftp`:
+
+| Onde | Path |
+|------|------|
+| Dentro do container | `/srv/sftpgo/data/joao` |
+| No host | `/opt/wsftp/docker/data/joao` |
+
+> Para listar ou fazer backup dos arquivos diretamente no host, acesse `docker/data/` dentro da
+> pasta onde o WSFTP foi instalado. Nenhuma configuração extra é necessária.
+
+---
+
 ## Mapeando diretórios reais do host para usuários
 
 Por padrão os arquivos ficam em `docker/data/<usuário>/` (dentro da pasta do projeto).

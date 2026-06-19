@@ -1,26 +1,11 @@
 # WSFTP — Guia de Implantação
 
-WSFTP é uma solução de transferência de arquivos (SFTP, FTPS, HTTPS, WebDAV) baseada no SFTPGo, com
+WSFTP é uma solução de transferência de arquivos (SFTP, FTPS, HTTPS, WebDAV) com
 branding e idioma português do Brasil da WLA. Este repositório contém o necessário para **implantar nos
 servidores dos clientes** (Linux Red Hat-based: RHEL, CentOS, Oracle Linux, AlmaLinux).
 
 A imagem Docker já vem com **tudo customizado assado dentro** (branding, idioma pt, logos, favicon).
 Aqui você só baixa a versão certa do registry e sobe — sem editar arquivos de configuração.
-
-## Como a imagem é produzida (visão geral)
-
-```
-[bump FROM sftpgo:vX]  ->  release.sh  ->  ECR privado (:X + :latest)
-   (repo privado WLA)      build+smoke+push          |
-                                                      v
-   VOCÊ (implantação):   install.sh  <-  este repo (.env: WSFTP_VERSION=X)
-       (login ECR ro)    pull :X + up + healthz
-```
-
-A WLA builda e publica a imagem no ECR. Você recebe **credenciais IAM somente-leitura** para baixá-la e
-implanta com o `install.sh`. Nada de imagem é compilado no servidor do cliente.
-
----
 
 ## Requisitos
 
@@ -98,7 +83,7 @@ chown -R 1000:1000 docker/data docker/db docker/backups
 docker compose up -d
 ```
 
-### Comandos administrativos do SFTPGo (dentro do container)
+### Comandos administrativos (dentro do container)
 
 ```bash
 docker exec wsftp sftpgo <comando>
@@ -109,7 +94,7 @@ docker exec -it wsftp sftpgo <comando>   # quando for interativo
 |---------|--------|
 | `resetpwd <usuário>` | Reseta a senha de um administrador |
 | `ping` | Health check |
-| `--version` | Versão do binário SFTPGo |
+| `--version` | Versão do binário |
 | `initprovider` | Inicializa/migra o banco |
 | `revertprovider` | Reverte o provider à versão anterior |
 | `acme run` | Emite certificados TLS (Let's Encrypt) |
@@ -133,6 +118,24 @@ docker exec wsftp sftpgo --version
 - **Grupos**: Groups (acesso compartilhado a pastas).
 - **Perfis (Roles)**: Roles (segmentação de administração).
 - **Idioma**: seletor no rodapé do login → **Português (Brasil)**.
+
+---
+
+## Tipos de storage suportados
+
+Cada usuário (ou pasta virtual) pode usar um storage diferente, configurado em **Users → Add → File System**.
+
+| Tipo | Descrição |
+|------|-----------|
+| **Local** | Disco local do servidor — padrão, zero configuração extra |
+| **Local criptografado** | Disco local com criptografia transparente em repouso |
+| **S3 Compatible** | AWS S3 ou qualquer storage compatível (MinIO, Wasabi, Backblaze B2…) |
+| **Google Cloud Storage** | GCS — requer Service Account JSON |
+| **Azure Blob Storage** | Azure Blob — requer account name + key ou SAS |
+| **SFTP remoto** | Outro servidor SFTP como backend (endpoint, usuário e senha) |
+| **HTTP filesystem** | Backend via API HTTP/S customizada |
+
+> Para a maioria dos clientes: **Local** ou **S3 Compatible**. Os demais exigem credenciais do provedor de nuvem correspondente.
 
 ---
 
@@ -177,7 +180,7 @@ O WSFTP dispara um `POST` HTTP num endpoint seu a cada evento de arquivo (recebi
 - (opcional) **Path/Protocol filters**: restringe a pastas ou protocolos específicos
 - **Actions**: selecione `webhook-eventos`
 
-→ **Save**. Pronto — a cada evento marcado, o SFTPGo faz `POST` no seu URL.
+→ **Save**. Pronto — a cada evento marcado, o WSFTP faz `POST` no seu URL.
 
 ### Placeholders disponíveis
 
